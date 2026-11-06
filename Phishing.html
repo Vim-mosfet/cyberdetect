@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYBER//DETECT — Atelier phishing</title>
+<meta name="description" content="Atelier de sensibilisation au phishing : 5 messages à démasquer en classe.">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html { -webkit-font-smoothing: antialiased; }
+
+  body {
+    background-color: #020617;
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(16, 185, 129, 0.10), transparent 55%),
+      linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+    background-size: 100% 100%, 44px 44px, 44px 44px;
+  }
+
+  /* Bruit de scan discret, très léger */
+  .scanlines::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 3px);
+  }
+
+  @keyframes glitch {
+    0%, 100% { transform: translate(0, 0); }
+    15% { transform: translate(-6px, 2px); }
+    30% { transform: translate(5px, -3px); }
+    45% { transform: translate(-4px, -2px); }
+    60% { transform: translate(6px, 1px); }
+    75% { transform: translate(-3px, 3px); }
+  }
+
+  .glitching .screen,
+  .glitching .site-header { animation: glitch 0.11s steps(1) infinite; }
+  .glitching { background-color: #1a0505; }
+
+  @keyframes flash {
+    0%, 100% { opacity: 0.12; }
+    50% { opacity: 0.48; }
+  }
+
+  .alarm-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 45%, rgba(220, 38, 38, 0.55), rgba(127, 29, 29, 0.9));
+    animation: flash 0.2s steps(1) infinite;
+  }
+
+  @keyframes alarmPop {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .alarm-box { animation: alarmPop 0.16s ease-out both; }
+
+  @keyframes chroma {
+    0%, 100% { text-shadow: 3px 0 rgba(248, 113, 113, 0.8), -3px 0 rgba(52, 211, 153, 0.8); }
+    50% { text-shadow: -4px 0 rgba(248, 113, 113, 0.9), 4px 0 rgba(52, 211, 153, 0.9); }
+  }
+
+  .alarm-title { animation: chroma 0.12s steps(1) infinite; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .fade-up { animation: fadeUp 0.32s ease both; }
+
+  .fake-link {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    word-break: break-all;
+  }
+
+  /* Zones entourées sur le message rejoué */
+  .hit {
+    border: 2px dashed currentColor;
+    border-radius: 8px;
+    padding: 0 6px;
+    margin: 0 2px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .hit--alert { color: #fca5a5; background: rgba(239, 68, 68, 0.14); }
+  .hit--good { color: #6ee7b7; background: rgba(16, 185, 129, 0.14); }
+
+  /* Rejeu compact du message dans le débriefing */
+  #debrief-msg article { box-shadow: none; }
+  #debrief-msg article > div:first-child { padding: 0.5rem 1rem; }
+  #debrief-msg article > div:last-child { padding: 0.95rem 1.15rem; }
+  #debrief-msg article h2,
+  #debrief-msg article p,
+  #debrief-msg article a { font-size: 1rem; line-height: 1.45; }
+
+  /* Écrans peu hauts (vidéoprojecteur 768p) : tout tient sans défilement */
+  @media (max-height: 900px) {
+    html { font-size: 15px; }
+  }
+  @media (max-height: 780px) {
+    html { font-size: 14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .glitching .screen, .glitching .site-header, .alarm-flash, .alarm-title, .alarm-box { animation: none; }
+    .fade-up { animation: none; }
+  }
+</style>
+</head>
+<body class="scanlines min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-emerald-400/30">
+
+  <!-- En-tête -->
+  <header class="site-header sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4 sm:px-10">
+      <div class="flex items-center gap-4">
+        <span class="grid h-11 w-11 place-items-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 font-mono text-base font-bold text-emerald-400">CD</span>
+        <div class="leading-tight">
+          <p class="font-mono text-base font-semibold tracking-[0.18em] text-emerald-400 sm:text-lg">CYBER//DETECT</p>
+          <p class="hidden text-sm text-slate-500 sm:block">Atelier de sensibilisation au phishing</p>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden items-center gap-8">
+        <div class="text-right">
+          <p class="font-mono text-xs uppercase tracking-[0.18em] text-slate-500">Scénario</p>
+          <p class="font-mono text-lg text-slate-200 sm:text-xl"><span id="hud-step">1</span><span class="text-slate-500">/5</span></p>
+        </div>
+        <div class="h-10 w-px bg-slate-800"></div>
+        <div class="text-right">
+          <p class="font-mono text-xs uppercase tracking-[0.18em] text-slate-500">Score</p>
+          <p class="font-mono text-lg font-semibold text-emerald-400 sm:text-xl"><span id="hud-score">0</span><span class="text-slate-500">/100</span></p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-10 mx-auto w-full max-w-6xl px-6 py-5 sm:px-10 sm:py-6">
+
+    <!-- Écran d'accueil -->
+    <section id="screen-welcome" class="screen fade-up">
+      <p class="font-mono text-sm uppercase tracking-[0.3em] text-emerald-400">// Briefing</p>
+      <h1 class="mt-5 text-4xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
+        Saurez-vous repérer<br class="hidden sm:block"> le message piégé&nbsp;?
+      </h1>
+      <p class="mt-6 max-w-3xl text-lg leading-relaxed text-slate-400 sm:text-xl">
+        Cinq messages arrivent sur votre écran : SMS, e-mails, messages privés. Débattez en classe,
+        votez à main levée, puis le professeur clique sur la réponse de la majorité.
+        Un mauvais clic — ou le moindre clic sur un lien — déclenche l'alerte.
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center gap-6">
+        <button id="btn-start" type="button"
+          class="rounded-xl bg-emerald-500 px-9 py-5 font-mono text-lg font-bold uppercase tracking-widest text-slate-950 transition hover:bg-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+          Lancer la session
+        </button>
+        <span class="font-mono text-sm uppercase tracking-[0.18em] text-slate-500 sm:text-base">5 scénarios · 100 points</span>
+      </div>
+
+      <div class="mt-14 grid gap-px overflow-hidden rounded-2xl border border-slate-800 bg-slate-800 sm:grid-cols-3">
+        <div class="bg-slate-950 p-7">
+          <p class="font-mono text-sm tracking-[0.18em] text-emerald-400">01 — OBSERVER</p>
+          <p class="mt-2 text-base text-slate-400 sm:text-lg">L'expéditeur, le domaine, le ton du message.</p>
+        </div>
+        <div class="bg-slate-950 p-7">
+          <p class="font-mono text-sm tracking-[0.18em] text-emerald-400">02 — DÉBATTRE</p>
+          <p class="mt-2 text-base text-slate-400 sm:text-lg">Chacun donne son indice, la classe tranche.</p>
+        </div>
+        <div class="bg-slate-950 p-7">
+          <p class="font-mono text-sm tracking-[0.18em] text-emerald-400">03 — VÉRIFIER</p>
+          <p class="mt-2 text-base text-slate-400 sm:text-lg">Le débriefing explique chaque piège.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Écran de jeu -->
+    <section id="screen-game" class="screen hidden">
+      <div class="mb-4 flex items-center justify-between gap-6">
+        <p class="font-mono text-sm uppercase tracking-[0.22em] text-slate-500 sm:text-base">
+          Scénario <span id="progress-label" class="text-slate-200">1</span> / 5
+        </p>
+        <div id="pbar" class="flex gap-2" aria-hidden="true">
+          <span class="h-1.5 w-12 rounded-full bg-slate-700 sm:w-16"></span>
+          <span class="h-1.5 w-12 rounded-full bg-slate-700 sm:w-16"></span>
+          <span class="h-1.5 w-12 rounded-full bg-slate-700 sm:w-16"></span>
+          <span class="h-1.5 w-12 rounded-full bg-slate-700 sm:w-16"></span>
+          <span class="h-1.5 w-12 rounded-full bg-slate-700 sm:w-16"></span>
+        </div>
+      </div>
+
+      <article id="game-card" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-2xl shadow-black/50 backdrop-blur">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-900/90 px-6 py-3 sm:px-8">
+          <div class="flex min-w-0 items-center gap-4">
+            <span id="msg-channel" class="shrink-0 rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-mono text-sm font-bold uppercase tracking-[0.16em] text-emerald-400">SMS</span>
+            <span id="msg-from" class="truncate font-mono text-base text-slate-300 sm:text-lg">expéditeur</span>
+          </div>
+          <span id="msg-meta" class="shrink-0 font-mono text-sm uppercase tracking-[0.14em] text-slate-500">reçu à l'instant</span>
+        </div>
+
+        <div class="space-y-3 p-6 sm:p-8">
+          <h2 id="msg-subject" class="text-xl font-semibold leading-snug text-white sm:text-2xl"></h2>
+          <div id="msg-body" class="space-y-4 text-lg leading-relaxed text-slate-200 sm:text-xl sm:leading-relaxed"></div>
+          <a id="msg-link" href="#" class="fake-link hidden font-mono text-lg text-emerald-300 hover:text-emerald-200 sm:text-xl"></a>
+        </div>
+      </article>
+
+      <div id="question-block" class="mt-6">
+        <p class="mb-3 text-center font-mono text-sm uppercase tracking-[0.22em] text-slate-500 sm:text-base">Ce message est-il fiable ?</p>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <button type="button" data-answer="safe"
+            class="group min-h-[5.5rem] rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/5 px-6 py-4 text-left transition hover:border-emerald-400 hover:bg-emerald-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:min-h-[6.5rem]">
+            <span class="block font-mono text-xs uppercase tracking-[0.2em] text-emerald-400/80 sm:text-sm">Option 1</span>
+            <span class="mt-1 block text-2xl font-black leading-tight text-emerald-300 sm:text-3xl">MESSAGE SÛR</span>
+            <span class="mt-1 block text-sm text-slate-400 sm:text-base">Je peux répondre / cliquer sans risque.</span>
+          </button>
+          <button type="button" data-answer="scam"
+            class="group min-h-[5.5rem] rounded-2xl border-2 border-red-500/40 bg-red-500/5 px-6 py-4 text-left transition hover:border-red-400 hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 sm:min-h-[6.5rem]">
+            <span class="block font-mono text-xs uppercase tracking-[0.2em] text-red-400/80 sm:text-sm">Option 2</span>
+            <span class="mt-1 block text-2xl font-black leading-tight text-red-300 sm:text-3xl">ARNAQUE / PHISHING</span>
+            <span class="mt-1 block text-sm text-slate-400 sm:text-base">Je ne réponds pas, je signale.</span>
+          </button>
+        </div>
+        <p class="mt-3 text-center font-mono text-xs text-slate-600">Un seul clic, définitif — y compris sur un lien du message.</p>
+      </div>
+    </section>
+
+    <!-- Écran de débriefing -->
+    <section id="screen-debrief" class="screen hidden">
+      <p class="font-mono text-xs uppercase tracking-[0.26em] text-slate-500 sm:text-sm">// Débriefing · scénario <span id="debrief-step">1</span></p>
+
+      <div class="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+
+        <div>
+          <div id="debrief-banner" class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+            <p id="debrief-verdict" class="font-mono text-xs uppercase tracking-[0.24em] sm:text-sm">VERDICT</p>
+            <h2 id="debrief-title" class="mt-2 text-xl font-bold text-white sm:text-2xl"></h2>
+            <p id="debrief-points" class="mt-2 font-mono text-sm text-slate-400 sm:text-base"></p>
+          </div>
+
+          <p class="mb-2 mt-4 font-mono text-xs uppercase tracking-[0.22em] text-slate-500">Le message revient à l'écran — indices entourés</p>
+          <div id="debrief-msg"></div>
+          <p class="mt-2 font-mono text-xs leading-relaxed text-slate-500">
+            <span class="hit hit--alert">rouge</span> : signal d'alerte
+            <span class="px-2 text-slate-700">·</span>
+            <span class="hit hit--good">vert</span> : preuve d'authenticité
+          </p>
+        </div>
+
+        <div class="flex h-full flex-col">
+          <h3 class="font-mono text-xs uppercase tracking-[0.22em] text-emerald-400 sm:text-sm">Ce qu'il fallait remarquer</h3>
+          <p id="debrief-text" class="mt-2 text-base leading-relaxed text-slate-300 sm:text-lg sm:leading-relaxed"></p>
+          <ul id="debrief-clues" class="mt-3 space-y-2"></ul>
+
+          <div class="mt-auto flex flex-wrap items-center gap-4 pt-4">
+            <button id="btn-next" type="button"
+              class="rounded-xl bg-emerald-500 px-7 py-3.5 font-mono text-base font-bold uppercase tracking-widest text-slate-950 transition hover:bg-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+              Scénario suivant
+            </button>
+            <span id="debrief-hint" class="max-w-xs font-mono text-xs text-slate-600"></span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Écran final -->
+    <section id="screen-result" class="screen hidden">
+      <p class="font-mono text-sm uppercase tracking-[0.28em] text-emerald-400">// Bilan de la session</p>
+
+      <div class="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2">
+        <p class="text-6xl font-bold leading-none tracking-tight text-white sm:text-7xl"><span id="final-score">0</span></p>
+        <p class="pb-3 font-mono text-xl text-slate-500">/ 100 points</p>
+      </div>
+      <p class="mt-4 font-mono text-base uppercase tracking-[0.18em] text-slate-500"><span id="final-count">0</span> bons réflexes sur 5</p>
+      <p id="final-message" class="mt-6 max-w-3xl text-lg leading-relaxed text-slate-400 sm:text-xl sm:leading-relaxed"></p>
+
+      <div class="mt-12 flex items-center gap-4">
+        <h2 class="font-mono text-sm uppercase tracking-[0.22em] text-emerald-400 sm:text-base">Les 4 règles d'or</h2>
+        <div class="h-px flex-1 bg-slate-800"></div>
+      </div>
+
+      <div class="mt-6 grid gap-5 sm:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-7">
+          <p class="font-mono text-sm tracking-[0.2em] text-emerald-400">RÈGLE 01</p>
+          <p class="mt-3 text-base leading-relaxed text-slate-300 sm:text-lg sm:leading-relaxed">Je vérifie qui m'écrit : l'adresse, le nom de domaine et le numéro. Un domaine qui ressemble à la marque n'est pas la marque.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-7">
+          <p class="font-mono text-sm tracking-[0.2em] text-emerald-400">RÈGLE 02</p>
+          <p class="mt-3 text-base leading-relaxed text-slate-300 sm:text-lg sm:leading-relaxed">Je ne clique jamais sur un lien reçu par message ou par mail : j'ouvre moi-même le site officiel en tapant son adresse.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-7">
+          <p class="font-mono text-sm tracking-[0.2em] text-emerald-400">RÈGLE 03</p>
+          <p class="mt-3 text-base leading-relaxed text-slate-300 sm:text-lg sm:leading-relaxed">Aucun organisme sérieux ne me réclame un mot de passe, un code reçu par SMS ou mes coordonnées par message.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-7">
+          <p class="font-mono text-sm tracking-[0.2em] text-emerald-400">RÈGLE 04</p>
+          <p class="mt-3 text-base leading-relaxed text-slate-300 sm:text-lg sm:leading-relaxed">L'urgence est le signal d'alarme : je prends deux minutes, je vérifie autrement, j'en parle à un adulte ou à un proche.</p>
+        </div>
+      </div>
+
+      <div class="mt-12 flex flex-wrap items-center gap-6 border-t border-slate-800 pt-7">
+        <button id="btn-restart" type="button"
+          class="rounded-xl border border-slate-700 px-9 py-5 font-mono text-lg font-bold uppercase tracking-widest text-slate-200 transition hover:border-slate-500 hover:bg-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
+          Rejouer la session
+        </button>
+        <p class="font-mono text-sm text-slate-600 sm:text-base">Un doute ? Tu ne cliques pas, tu vérifies.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Alerte -->
+  <div id="alarm" class="fixed inset-0 z-50 hidden items-center justify-center px-6" role="alert" aria-live="assertive">
+    <div class="alarm-flash"></div>
+    <div class="alarm-box relative z-10 w-full max-w-3xl rounded-3xl border-2 border-red-500 bg-slate-950/90 p-8 text-center shadow-2xl shadow-red-900/50 sm:p-12">
+      <p class="font-mono text-sm uppercase tracking-[0.3em] text-red-400">⚠ Système compromis</p>
+      <h2 class="alarm-title mt-5 text-3xl font-black uppercase leading-tight tracking-tight text-red-50 sm:text-5xl">
+        Alerte critique
+      </h2>
+      <p class="mt-4 font-mono text-lg uppercase tracking-[0.1em] text-red-300 sm:text-2xl">
+        Données corrompues / vous avez été piégé&nbsp;!
+      </p>
+      <div class="mt-7 h-px w-full bg-red-900"></div>
+      <p class="mt-5 font-mono text-sm uppercase tracking-[0.18em] text-slate-500">Analyse du message en cours…</p>
+    </div>
+  </div>
+
+<script>
+  var SCENARIOS = [
+    {
+      id: 1,
+      channel: "SMS",
+      from: "+33 6 44 92 10 04",
+      marks: [
+        { find: "+33 6 44 92 10 04", kind: "alert" },
+        { find: "chronopost-suivi-livraison-fr.com", kind: "alert" },
+        { find: "(1,99 €)", kind: "alert" },
+        { find: "sous 24h", kind: "alert" }
+      ],
+      meta: "reçu à l'instant",
+      subject: "",
+      lines: [
+        "Chronopost : Votre colis N°FR-849202 ne peut pas être livré. Régularisez les frais (1,99 €) sous 24h sur :"
+      ],
+      link: "http://chronopost-suivi-livraison-fr.com/douane",
+      scam: true,
+      explain: "Ce SMS n'a rien d'officiel. Le vrai Chronopost ne vous écrit jamais depuis un numéro de portable en 06, ne vous réclame pas 1,99 € par message et n'utilise pas un nom de domaine en .com qui se contente de coller la marque devant un nom inventé. L'urgence annoncée (« sous 24h ») et le montant minuscule servent à vous faire cliquer sans réfléchir : ce qu'ils veulent, ce sont vos coordonnées bancaires.",
+      clues: [
+        "Numéro en 06 : un transporteur écrit depuis un numéro court, jamais depuis un mobile.",
+        "Faux nom de domaine en .com : chronopost-suivi-livraison-fr.com n'est pas chronopost.fr.",
+        "Le vrai site s'écrit chronopost.fr, sans tiret ni mot ajouté autour de la marque.",
+        "Urgence artificielle : « sous 24h » pour court-circuiter la réflexion.",
+        "Petit montant : 1,99 € paraît anodin, c'est une carte bancaire qu'ils veulent."
+      ]
+    },
+    {
+      id: 2,
+      channel: "SMS",
+      from: "38600",
+      marks: [
+        { find: "38600", kind: "good" },
+        { find: "839-204", kind: "good" },
+        { find: "Ne communiquez CE CODE à personne.", kind: "good" },
+        { find: "Nos équipes ne vous le demanderont jamais.", kind: "good" }
+      ],
+      meta: "reçu à l'instant",
+      subject: "",
+      lines: [
+        "Snapchat : Votre code de vérification est 839-204. Ne communiquez CE CODE à personne. Nos équipes ne vous le demanderont jamais."
+      ],
+      link: "",
+      scam: false,
+      explain: "Ici tout est cohérent : le message vient du numéro court officiel de Snapchat (38600, cinq chiffres), il ne contient aucun lien externe et il ne demande aucune action. Il vous informe d'un code — que vous êtes seul à devoir connaître. La consigne de sécurité intégrée au message est elle aussi authentique : personne, jamais, ne doit vous réclamer ce code. Si quelqu'un vous le demande ensuite par message, c'est une tentative de piratage.",
+      clues: [
+        "Numéro court officiel : 38600, à cinq chiffres, utilisé par Snapchat.",
+        "Aucun lien externe, aucune pièce jointe, aucune demande d'action.",
+        "Consigne de sécurité intégrée : « ne communiquez ce code à personne ».",
+        "Le code ne se saisit que dans l'application, jamais transmis à un tiers."
+      ]
+    },
+    {
+      id: 3,
+      channel: "DISCORD",
+      from: "K1ng_Gamer_99 · ami",
+      marks: [
+        { find: "K1ng_Gamer_99", kind: "alert" },
+        { find: "dlscord", kind: "alert" },
+        { find: ".ru", kind: "alert" },
+        { find: "3 mois de Nitro gratuit", kind: "alert" },
+        { find: "il reste 12 places", kind: "alert" }
+      ],
+      meta: "message privé · il y a 2 min",
+      subject: "",
+      lines: [
+        "Yo ! Discord offre 3 mois de Nitro gratuit pour les 500 premiers, il reste 12 places !"
+      ],
+      link: "http://dlscord-gift-nitro.ru/claim",
+      scam: true,
+      explain: "Ce n'est pas votre ami qui écrit : son compte a été piraté par un bot qui envoie la même arnaque à tous ses contacts. Le domaine est truqué — « dlscord » avec un L à la place du i — et se termine par l'extension russe .ru, sans aucun rapport avec Discord. Un cadeau qui exige un clic immédiat et une connexion est un vol d'identifiants, pas un cadeau. Prévenez votre ami : son compte est compromis.",
+      clues: [
+        "Faute dans le domaine : « dlscord » avec un L à la place du i.",
+        "Extension .ru : un site officiel de Discord ne se termine pas par une extension étrangère.",
+        "Cadeau sans participation : Discord ne distribue pas de Nitro aux 500 premiers venus.",
+        "Rareté inventée : « il reste 12 places » empêche de prendre le temps de vérifier.",
+        "Compte piraté : un ami qui n'écrit jamais d'habitude et envoie un lien suspect, c'est son compte qu'il faut prévenir."
+      ]
+    },
+    {
+      id: 4,
+      channel: "MAIL",
+      from: "direction@monent-auvergne-rhone-alpes.fr",
+      marks: [
+        { find: "direction@monent-auvergne-rhone-alpes.fr", kind: "good" },
+        { find: "ce vendredi de 22h à 02h", kind: "good" },
+        { find: "Aucune action", kind: "good" }
+      ],
+      meta: "boîte de réception",
+      subject: "ENT : maintenance vendredi de 22h à 02h",
+      lines: [
+        "Bonjour à tous,",
+        "L'ENT sera indisponible ce vendredi de 22h à 02h pour maintenance. Aucune action n'est requise de votre part."
+      ],
+      link: "",
+      scam: false,
+      explain: "Ce mail est légitime. Il vient d'une adresse de l'établissement, annonce une simple information technique et précise explicitement qu'aucune action n'est attendue. Il ne réclame ni mot de passe, ni code, ni identifiant, et il ne contient aucun lien à cliquer. C'est exactement le profil d'un message d'information sain : on peut le lire, on n'a rien à faire.",
+      clues: [
+        "Adresse cohérente avec l'établissement, sur son propre domaine.",
+        "Aucune demande de mot de passe, de code ou de données personnelles.",
+        "Aucun lien à cliquer : l'information suffit à elle seule.",
+        "« Aucune action n'est requise » : un vrai message d'information ne vous met pas sous pression.",
+        "Un horaire précis et technique, typique d'une maintenance planifiée."
+      ]
+    },
+    {
+      id: 5,
+      channel: "MAIL",
+      from: "noreply@epicgames-rewards-event.com",
+      marks: [
+        { find: "epicgames-rewards-event.com", kind: "alert" },
+        { find: "vbucks-epicgames-claim.org", kind: "alert" },
+        { find: "tiré au sort", kind: "alert" }
+      ],
+      meta: "boîte de réception",
+      subject: "Félicitations ! Vous avez été tiré au sort pour 5000 V-Bucks",
+      lines: [
+        "Félicitations ! Vous avez été tiré au sort pour 5000 V-Bucks offerts. Connectez-vous sur :"
+      ],
+      link: "http://vbucks-epicgames-claim.org/reward",
+      scam: true,
+      explain: "Vous n'avez participé à aucun tirage : c'est la base de l'arnaque. Les V-Bucks ne s'obtiennent que dans le jeu ou sur le site officiel d'Epic Games, jamais par un e-mail. Le domaine expéditeur n'appartient pas à Epic — la marque est collée devant « rewards-event » — et le lien de réclamation pointe vers un site en .org sans rapport avec l'éditeur. Le but : récupérer vos identifiants Epic Games.",
+      clues: [
+        "Faux nom de domaine : epicgames-rewards-event.com n'est pas epicgames.com.",
+        "Cadeau sans raison : vous n'avez jamais participé à ce tirage au sort.",
+        "Lien vers un site tiers en .org pour saisir ses identifiants.",
+        "Formule vague et absence de pseudo ou de numéro de compte.",
+        "L'urgence implicite du « félicitations » pousse à cliquer avant de réfléchir."
+      ]
+    }
+  ];
+
+  var TOTAL = SCENARIOS.length;
+  var POINTS = 100 / TOTAL;
+
+  var state = {
+    index: 0,
+    score: 0,
+    correctCount: 0,
+    locked: false,
+    timer: null
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function showScreen(id) {
+    ["screen-welcome", "screen-game", "screen-debrief", "screen-result"].forEach(function (screenId) {
+      $(screenId).classList.add("hidden");
+      $(screenId).classList.remove("fade-up");
+    });
+    var el = $(id);
+    el.classList.remove("hidden");
+    void el.offsetWidth;
+    el.classList.add("fade-up");
+  }
+
+  /* ---------- Son d'alerte (WebAudio, aucun fichier) ---------- */
+  function playAlarm() {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+
+    var ctx;
+    try { ctx = new Ctx(); } catch (e) { return; }
+
+    var start = ctx.currentTime + 0.02;
+    var master = ctx.createGain();
+    master.gain.value = 0.2;
+    master.connect(ctx.destination);
+
+    var steps = [
+      { t: 0.00, f: 880, d: 0.12 },
+      { t: 0.15, f: 622, d: 0.12 },
+      { t: 0.30, f: 880, d: 0.12 },
+      { t: 0.45, f: 466, d: 0.18 },
+      { t: 0.68, f: 330, d: 0.32 }
+    ];
+
+    steps.forEach(function (step) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(step.f, start + step.t);
+      gain.gain.setValueAtTime(0.0001, start + step.t);
+      gain.gain.exponentialRampToValueAtTime(0.3, start + step.t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + step.t + step.d);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(start + step.t);
+      osc.stop(start + step.t + step.d + 0.03);
+    });
+
+    setTimeout(function () {
+      if (ctx.state !== "closed") ctx.close();
+    }, 1500);
+  }
+
+  /* ---------- Affichage d'un scénario ---------- */
+  function renderScenario() {
+    var m = SCENARIOS[state.index];
+
+    state.locked = false;
+
+    $("msg-channel").textContent = m.channel;
+    $("msg-from").textContent = m.from;
+    $("msg-meta").textContent = m.meta;
+
+    var subjectEl = $("msg-subject");
+    if (m.subject) {
+      subjectEl.textContent = m.subject;
+      subjectEl.classList.remove("hidden");
+    } else {
+      subjectEl.textContent = "";
+      subjectEl.classList.add("hidden");
+    }
+
+    var body = $("msg-body");
+    body.textContent = "";
+    m.lines.forEach(function (line) {
+      var p = document.createElement("p");
+      p.textContent = line;
+      body.appendChild(p);
+    });
+
+    var linkEl = $("msg-link");
+    if (m.link) {
+      linkEl.textContent = m.link;
+      linkEl.setAttribute("href", m.link);
+      linkEl.classList.remove("hidden");
+    } else {
+      linkEl.textContent = "";
+      linkEl.setAttribute("href", "#");
+      linkEl.classList.add("hidden");
+    }
+
+    $("progress-label").textContent = String(state.index + 1);
+    $("hud-step").textContent = String(state.index + 1);
+    $("hud-score").textContent = String(Math.round(state.score));
+
+    var dots = $("pbar").children;
+    for (var i = 0; i < dots.length; i++) {
+      dots[i].className = i <= state.index
+        ? "h-1.5 w-12 rounded-full bg-emerald-400 sm:w-16"
+        : "h-1.5 w-12 rounded-full bg-slate-700 sm:w-16";
+    }
+
+    $("question-block").classList.remove("hidden");
+  }
+
+  /* ---------- Rappel du message + indices entourés ---------- */
+  function normalizeSpaces(text) {
+    return text.replace(/[\u00a0\u202f\u2009]/g, " ");
+  }
+
+  function circleInTextNode(node, phrase, kind) {
+    var value = node.nodeValue;
+    var haystack = normalizeSpaces(value);
+    var needle = normalizeSpaces(phrase);
+    var fragment = document.createDocumentFragment();
+    var from = 0;
+    var at;
+    var found = false;
+
+    while ((at = haystack.indexOf(needle, from)) !== -1) {
+      found = true;
+      if (at > from) fragment.appendChild(document.createTextNode(value.slice(from, at)));
+
+      var mark = document.createElement("span");
+      mark.className = "hit hit--" + kind;
+      mark.textContent = value.slice(at, at + needle.length);
+      fragment.appendChild(mark);
+
+      from = at + needle.length;
+    }
+
+    if (!found) return;
+    if (from < value.length) fragment.appendChild(document.createTextNode(value.slice(from)));
+    node.parentNode.replaceChild(fragment, node);
+  }
+
+  function circleClues(root, marks) {
+    marks.forEach(function (mark) {
+      var needle = normalizeSpaces(mark.find);
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (node) {
+          if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+          if (normalizeSpaces(node.nodeValue).indexOf(needle) === -1) return NodeFilter.FILTER_REJECT;
+          if (node.parentNode && node.parentNode.closest && node.parentNode.closest(".hit")) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+
+      var targets = [];
+      var node;
+      while ((node = walker.nextNode())) targets.push(node);
+
+      targets.forEach(function (target) {
+        circleInTextNode(target, mark.find, mark.kind);
+      });
+    });
+  }
+
+  function renderDebriefMessage() {
+    var slot = $("debrief-msg");
+    slot.textContent = "";
+
+    var copy = $("game-card").cloneNode(true);
+    copy.removeAttribute("id");
+
+    Array.prototype.forEach.call(copy.querySelectorAll("[id]"), function (node) {
+      node.removeAttribute("id");
+    });
+
+    Array.prototype.forEach.call(copy.querySelectorAll("a"), function (link) {
+      link.removeAttribute("href");
+      link.style.pointerEvents = "none";
+    });
+
+    circleClues(copy, SCENARIOS[state.index].marks || []);
+    slot.appendChild(copy);
+  }
+
+  /* ---------- Débriefing ---------- */
+  function showDebrief(trapped) {
+    var m = SCENARIOS[state.index];
+    var banner = $("debrief-banner");
+    var verdict = $("debrief-verdict");
+
+    $("debrief-step").textContent = String(state.index + 1);
+
+    if (trapped) {
+      banner.className = "rounded-2xl border border-red-500/60 bg-red-950/40 p-5 sm:p-6";
+      verdict.className = "font-mono text-xs uppercase tracking-[0.24em] text-red-400 sm:text-sm";
+      verdict.textContent = "⚠ Piège refermé";
+      $("debrief-title").textContent = "Vous avez été piégé";
+      $("debrief-title").className = "mt-2 text-xl font-bold text-red-100 sm:text-2xl";
+      $("debrief-points").textContent = "+0 point — ce message était " + (m.scam ? "une arnaque." : "authentique.");
+      $("debrief-hint").textContent = "Cliquer sur un lien = mauvais réflexe, même si le message est authentique.";
+    } else {
+      banner.className = "rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-5 sm:p-6";
+      verdict.className = "font-mono text-xs uppercase tracking-[0.24em] text-emerald-400 sm:text-sm";
+      verdict.textContent = "✔ Piège évité";
+      $("debrief-title").textContent = m.scam ? "Bien vu : c'était une arnaque" : "Bien vu : ce message était authentique";
+      $("debrief-title").className = "mt-2 text-xl font-bold text-emerald-50 sm:text-2xl";
+      $("debrief-points").textContent = "+" + Math.round(POINTS) + " points — bonne analyse.";
+      $("debrief-hint").textContent = "";
+    }
+
+    renderDebriefMessage();
+    $("debrief-text").textContent = m.explain;
+
+    var clues = $("debrief-clues");
+    clues.textContent = "";
+    m.clues.forEach(function (clue) {
+      var li = document.createElement("li");
+      li.className = "flex gap-3 text-sm leading-relaxed text-slate-300 sm:text-base sm:leading-relaxed";
+
+      var bullet = document.createElement("span");
+      bullet.className = "mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400";
+      bullet.setAttribute("aria-hidden", "true");
+
+      var text = document.createElement("span");
+      text.textContent = clue;
+
+      li.appendChild(bullet);
+      li.appendChild(text);
+      clues.appendChild(li);
+    });
+
+    $("btn-next").textContent = state.index === TOTAL - 1 ? "Voir le bilan" : "Scénario suivant";
+    showScreen("screen-debrief");
+    $("btn-next").focus();
+  }
+
+  /* ---------- Réponse ---------- */
+  function triggerAlarm(onDone) {
+    document.body.classList.add("glitching");
+    $("alarm").classList.remove("hidden");
+    $("alarm").classList.add("flex");
+    document.body.style.overflow = "hidden";
+    playAlarm();
+
+    clearTimeout(state.timer);
+    state.timer = setTimeout(function () {
+      document.body.classList.remove("glitching");
+      $("alarm").classList.add("hidden");
+      $("alarm").classList.remove("flex");
+      document.body.style.overflow = "";
+      onDone();
+    }, 1650);
+  }
+
+  function answer(kind) {
+    if (state.locked) return;
+    state.locked = true;
+
+    var m = SCENARIOS[state.index];
+    var correct = kind === (m.scam ? "scam" : "safe");
+
+    if (correct) {
+      state.score += POINTS;
+      state.correctCount += 1;
+      $("hud-score").textContent = String(Math.round(state.score));
+      setTimeout(function () { showDebrief(false); }, 220);
+    } else {
+      triggerAlarm(function () { showDebrief(true); });
+    }
+  }
+
+  function next() {
+    clearTimeout(state.timer);
+    state.index += 1;
+
+    if (state.index >= TOTAL) {
+      showResult();
+      return;
+    }
+
+    showScreen("screen-game");
+    renderScenario();
+  }
+
+  function showResult() {
+    var score = Math.round(state.score);
+    $("final-score").textContent = String(score);
+    $("final-count").textContent = String(state.correctCount);
+
+    var text;
+    if (score === 100) {
+      text = "Sans faute. La classe a repéré tous les pièges : expéditeurs douteux, domaines imités, urgence inventée. Ces réflexes, gardez-les sur votre propre téléphone.";
+    } else if (score >= 60) {
+      text = "Très bonne analyse. Quelques pièges sont passés, souvent ceux qui imitent le mieux une marque connue : c'est exactement là que les arnaqueurs sont les plus forts.";
+    } else if (score >= 40) {
+      text = "La classe a vu la moitié de la vérité. Les messages les plus crédibles — ceux qui ressemblent à un vrai service — ont trompé la majorité, comme dans la vraie vie.";
+    } else {
+      text = "L'atelier a fait son travail : ces messages sont conçus pour tromper. Relisez les quatre règles ci-dessous, puis rejouez la session — les indices deviendront évidents.";
+    }
+    $("final-message").textContent = text;
+
+    $("hud").classList.add("hidden");
+    $("hud").classList.remove("flex");
+    showScreen("screen-result");
+  }
+
+  /* ---------- Démarrage / rejouer ---------- */
+  function startGame() {
+    clearTimeout(state.timer);
+    document.body.classList.remove("glitching");
+    document.body.style.overflow = "";
+    $("alarm").classList.add("hidden");
+    $("alarm").classList.remove("flex");
+
+    state.index = 0;
+    state.score = 0;
+    state.correctCount = 0;
+    state.locked = false;
+
+    $("hud").classList.remove("hidden");
+    $("hud").classList.add("flex");
+
+    showScreen("screen-game");
+    renderScenario();
+  }
+
+  /* ---------- Écouteurs ---------- */
+  $("btn-start").addEventListener("click", startGame);
+  $("btn-restart").addEventListener("click", startGame);
+  $("btn-next").addEventListener("click", next);
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-answer]"), function (button) {
+    button.addEventListener("click", function () {
+      answer(button.getAttribute("data-answer"));
+    });
+  });
+
+  $("msg-link").addEventListener("click", function (event) {
+    event.preventDefault();
+    if (state.locked) return;
+    answer("link");
+  });
+</script>
+</body>
+</html>
